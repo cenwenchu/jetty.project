@@ -403,7 +403,8 @@ public class PooledBuffers extends AbstractBuffers
 					
 					Thread.sleep(interval * 1000);
 					
-					logger.warn(new StringBuilder().append("PooledBuffers info: ")
+					if (_headCount.get() != 0 && _bufferCount.get() != 0)
+						logger.warn(new StringBuilder().append("PooledBuffers info: ")
 							.append(" head chain count: ").append(_headers.size())
 							.append(" body chain count: ").append(_buffers.size())
 							.append(" head usage: ").append(_headRatio.get()/_headCount.get())

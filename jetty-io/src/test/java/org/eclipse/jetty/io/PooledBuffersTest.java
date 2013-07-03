@@ -49,6 +49,7 @@ public class PooledBuffersTest {
 						cyclicBarrier.await();
 						
 						Buffer[] body = new Buffer[10];
+						Buffer[] header = new Buffer[2];
 						
 						for (int i =0 ; i < 10;i++)
 						{
@@ -66,6 +67,39 @@ public class PooledBuffersTest {
 						
 						Assert.assertArrayEquals(new int[]{0,40,0,40}, pooledBuffers.getInnerCounters());
 						
+						for (int i =0 ; i < 5;i++)
+						{
+							body[i] = pooledBuffers.getBuffer();
+						}
+						Thread.sleep(2000);
+						
+						Assert.assertArrayEquals(new int[]{0,20,0,20}, pooledBuffers.getInnerCounters());
+						
+						for (int i =0 ; i < 5;i++)
+						{
+							pooledBuffers.returnBuffer(body[i]);
+						}
+						Thread.sleep(2000);
+						
+						Assert.assertArrayEquals(new int[]{0,40,0,40}, pooledBuffers.getInnerCounters());
+						
+						for (int i =0 ; i < 2;i++)
+						{
+							header[i] = pooledBuffers.getHeader();
+						}
+						Thread.sleep(2000);
+						
+						Assert.assertArrayEquals(new int[]{0,40,0,40}, pooledBuffers.getInnerCounters());
+						
+						for (int i = 0 ; i < 2;i++)
+						{
+							pooledBuffers.returnBuffer(header[i]);
+						}
+						Thread.sleep(2000);
+						
+						Assert.assertArrayEquals(new int[]{8,40,0,48}, pooledBuffers.getInnerCounters());
+						
+						
 					} catch (InterruptedException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
@@ -82,6 +116,10 @@ public class PooledBuffersTest {
 		}
 		
 		countDownLatch.await();
+		
+		Thread.sleep(60 * 1000);
+		
+		Assert.assertArrayEquals(new int[]{0,40,0,40}, pooledBuffers.getInnerCounters());
 	}
 
 	@Ignore
