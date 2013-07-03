@@ -48,6 +48,25 @@ public interface Buffer extends Cloneable
       READWRITE=2;  // anything can be changed
     public final boolean VOLATILE=true;     // The buffer may change outside of current scope.
     public final boolean NON_VOLATILE=false;
+    
+    long getLastUseTimeStamp();
+    
+    void setLastUseTimeStamp(long timestamp);
+    
+    /**
+     * user define type
+     * @return
+     */
+    Buffers.ServiceType getServiceType();
+    
+    Buffers.Type getBufferType();
+    
+    /**
+     *  user define type
+     */
+    void setServiceType(Buffers.ServiceType type);
+    
+    void setBufferType(Buffers.Type type);
 
     /**
      *  Get the underlying array, if one exists.

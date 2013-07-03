@@ -23,10 +23,10 @@ import org.eclipse.jetty.io.nio.IndirectNIOBuffer;
 
 public abstract class AbstractBuffers implements Buffers
 {
-    protected final Buffers.Type _headerType;
-    protected final int _headerSize;
-    protected final Buffers.Type _bufferType;
-    protected final int _bufferSize;
+    protected Buffers.Type _headerType;
+    protected int _headerSize;
+    protected Buffers.Type _bufferType;
+    protected int _bufferSize;
     protected final Buffers.Type _otherType;
 
     /* ------------------------------------------------------------ */
@@ -65,14 +65,30 @@ public abstract class AbstractBuffers implements Buffers
      */
     final protected Buffer newHeader()
     {
+    	Buffer buffer;
         switch(_headerType)
         {
             case BYTE_ARRAY:
-                return new ByteArrayBuffer(_headerSize);
+            {
+            	buffer = new ByteArrayBuffer(_headerSize);
+            	buffer.setServiceType(Buffers.ServiceType.HEADER);
+            	buffer.setBufferType(_headerType);
+            	return buffer;
+            }
             case DIRECT:
-                return new DirectNIOBuffer(_headerSize);
+            {
+            	buffer = new DirectNIOBuffer(_headerSize);
+            	buffer.setServiceType(Buffers.ServiceType.HEADER);
+            	buffer.setBufferType(_headerType);
+            	return buffer;
+            }
             case INDIRECT:
-                return new IndirectNIOBuffer(_headerSize);
+            {
+            	buffer = new IndirectNIOBuffer(_headerSize);
+            	buffer.setServiceType(Buffers.ServiceType.HEADER);
+            	buffer.setBufferType(_headerType);
+            	return buffer;
+            }
         }
         throw new IllegalStateException();
     }
@@ -84,14 +100,30 @@ public abstract class AbstractBuffers implements Buffers
      */
     final protected Buffer newBuffer()
     {
+       Buffer buffer;
        switch(_bufferType)
        {
-           case BYTE_ARRAY:
-               return new ByteArrayBuffer(_bufferSize);
-           case DIRECT:
-               return new DirectNIOBuffer(_bufferSize);
-           case INDIRECT:
-               return new IndirectNIOBuffer(_bufferSize);
+       		case BYTE_ARRAY:
+       		{
+       			buffer = new ByteArrayBuffer(_bufferSize);
+       			buffer.setServiceType(Buffers.ServiceType.BODY);
+       			buffer.setBufferType(_bufferType);
+       			return buffer;
+       		}
+       		case DIRECT:
+       		{
+       			buffer = new DirectNIOBuffer(_bufferSize);
+       			buffer.setServiceType(Buffers.ServiceType.BODY);
+       			buffer.setBufferType(_bufferType);
+       			return buffer;
+       		}
+       		case INDIRECT:
+       		{
+       			buffer = new IndirectNIOBuffer(_bufferSize);
+       			buffer.setServiceType(Buffers.ServiceType.BODY);
+       			buffer.setBufferType(_bufferType);
+       			return buffer;
+       		}
        }
        throw new IllegalStateException();
     }
@@ -104,14 +136,30 @@ public abstract class AbstractBuffers implements Buffers
      */
     final protected Buffer newBuffer(int size)
     {
-       switch(_otherType)
-       {
-           case BYTE_ARRAY:
-               return new ByteArrayBuffer(size);
-           case DIRECT:
-               return new DirectNIOBuffer(size);
-           case INDIRECT:
-               return new IndirectNIOBuffer(size);
+    	Buffer buffer;
+    	switch(_otherType)
+    	{
+  			case BYTE_ARRAY:
+  			{
+  				buffer = new ByteArrayBuffer(size);
+  				buffer.setServiceType(Buffers.ServiceType.BODY);
+  				buffer.setBufferType(_otherType);
+  				return buffer;
+  			}
+  			case DIRECT:
+  			{
+  				buffer = new DirectNIOBuffer(size);
+  				buffer.setServiceType(Buffers.ServiceType.BODY);
+  				buffer.setBufferType(_otherType);
+  				return buffer;
+  			}
+  			case INDIRECT:
+  			{
+  				buffer = new IndirectNIOBuffer(size);
+  				buffer.setServiceType(Buffers.ServiceType.BODY);
+  				buffer.setBufferType(_otherType);
+  				return buffer;
+  			}
        }
        throw new IllegalStateException();
     }
@@ -123,9 +171,9 @@ public abstract class AbstractBuffers implements Buffers
      */
     public final boolean isHeader(Buffer buffer)
     {
-        if (buffer.capacity()==_headerSize)
+        if (buffer.getServiceType() == Buffers.ServiceType.HEADER)
         {
-            switch(_headerType)
+            switch(buffer.getBufferType())
             {
                 case BYTE_ARRAY:
                     return buffer instanceof ByteArrayBuffer && !(buffer instanceof  IndirectNIOBuffer);
@@ -145,9 +193,9 @@ public abstract class AbstractBuffers implements Buffers
      */
     public final boolean isBuffer(Buffer buffer)
     {
-        if (buffer.capacity()==_bufferSize)
+    	if (buffer.getServiceType() == Buffers.ServiceType.BODY)
         {
-            switch(_bufferType)
+            switch(buffer.getBufferType())
             {
                 case BYTE_ARRAY:
                     return buffer instanceof ByteArrayBuffer && !(buffer instanceof  IndirectNIOBuffer);

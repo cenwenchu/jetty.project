@@ -54,8 +54,35 @@ public abstract class AbstractBuffer implements Buffer
     protected int _mark;
     protected String _string;
     protected View _view;
+    protected Buffers.ServiceType serviceType;
+    protected Buffers.Type bufferType;
+    protected long lastUseTimeStamp;
+    
+    public Buffers.Type getBufferType() {
+		return bufferType;
+	}
 
-    /**
+	public void setBufferType(Buffers.Type bufferType) {
+		this.bufferType = bufferType;
+	}
+
+    public long getLastUseTimeStamp() {
+		return lastUseTimeStamp;
+	}
+
+	public void setLastUseTimeStamp(long lastUseTimeStamp) {
+		this.lastUseTimeStamp = lastUseTimeStamp;
+	}
+
+	public Buffers.ServiceType getServiceType() {
+		return serviceType;
+	}
+
+	public void setServiceType(Buffers.ServiceType serviceType) {
+		this.serviceType = serviceType;
+	}
+
+	/**
      * Constructor for BufferView
      * 
      * @param access 0==IMMUTABLE, 1==READONLY, 2==READWRITE
@@ -440,9 +467,11 @@ public abstract class AbstractBuffer implements Buffer
         if (index + length > capacity())
         {
             length=capacity()-index;
-            /* if (length<0)
+            /*
+            if (length<0)
                 throw new IllegalArgumentException("index>capacity(): " + index + ">" + capacity());
-            */
+                */
+            
         }
         
         byte[] dst_array = array();
