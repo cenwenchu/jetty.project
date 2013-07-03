@@ -36,14 +36,18 @@ public class PooledBuffers extends AbstractBuffers
     private final int _maxSize;
     private final boolean _otherHeaders;
     private final boolean _otherBuffers;
+    private BufferInspactor idleChecker;
     
     private final AtomicLong _headRatio = new AtomicLong(0);
     private final AtomicLong _headCount = new AtomicLong(0);
+    private final AtomicLong _maxHeaderUsageSize = new AtomicLong(0);
+    private final AtomicLong _maxBodyUsageSize = new AtomicLong(0);
     private final AtomicLong _bufferRatio = new AtomicLong(0);
     private final AtomicLong _bufferCount = new AtomicLong(0);
     private final AtomicLong _allocDirectBufferSize = new AtomicLong(0);
     private long maxDirectBufferSize = 0;//最大Directbuffer设置，如果是0不起效,单位k
     private boolean needAdjustBufferSize = false;
+    private boolean needReclaimIdleBuffer = true;
     private int maxBufferIdleTime = 30 *60;
     private int checkInterval = 10;
 
@@ -60,9 +64,19 @@ public class PooledBuffers extends AbstractBuffers
 
         getConfigFromSystemCommandLine();
 
-        Thread t = new Thread(new BufferInspactor(checkInterval));
+        idleChecker = new BufferInspactor(checkInterval);
+        Thread t = new Thread(idleChecker);
         t.setDaemon(true);
         t.start();  
+    }
+    
+    public void clean()
+    {
+    	_headers.clear();
+    	_buffers.clear();
+    	_others.clear();
+    	
+    	idleChecker.stopInspactor();
     }
     
     public int[] getInnerCounters()
@@ -89,6 +103,11 @@ public class PooledBuffers extends AbstractBuffers
         	needAdjustBufferSize = Boolean.valueOf(System.getProperty("jetty.needAdjustBufferSize"));
 			logger.warn("jetty PoolBuffer needAdjustBufferSize ");
 		}  
+    	if (System.getProperty("jetty.needReclaimIdleBuffer") != null)
+		{
+    		needReclaimIdleBuffer = Boolean.valueOf(System.getProperty("jetty.needReclaimIdleBuffer"));
+			logger.warn("jetty PoolBuffer needReclaimIdleBuffer ");
+		}  
     	if (System.getProperty("jetty.PooledBufferInspactorInterval") != null)
 		{
         	checkInterval = Integer.valueOf(System.getProperty("jetty.PooledBufferInspactorInterval"));
@@ -103,7 +122,15 @@ public class PooledBuffers extends AbstractBuffers
     
     
 
-    public long getMaxDirectBufferSize() {
+    public boolean isNeedReclaimIdleBuffer() {
+		return needReclaimIdleBuffer;
+	}
+
+	public void setNeedReclaimIdleBuffer(boolean needReclaimIdleBuffer) {
+		this.needReclaimIdleBuffer = needReclaimIdleBuffer;
+	}
+
+	public long getMaxDirectBufferSize() {
 		return maxDirectBufferSize;
 	}
 
@@ -225,7 +252,16 @@ public class PooledBuffers extends AbstractBuffers
     	{
     		try
         	{
-        		_headRatio.addAndGet((buffer.putIndex()*100)/buffer.capacity());
+    			long r = (buffer.putIndex()*100)/buffer.capacity();
+    			long max = _maxHeaderUsageSize.get();
+    			
+    			//不做强制并发控制，如果替换失败也不重试
+    			if (max < r)
+    			{
+    				_maxHeaderUsageSize.compareAndSet(max, r);
+    			}
+    			
+        		_headRatio.addAndGet(r);
         		_headCount.incrementAndGet();
         	}
         	catch(Exception ex)
@@ -238,7 +274,16 @@ public class PooledBuffers extends AbstractBuffers
     	{
     		try
         	{
-    			_bufferRatio.addAndGet((buffer.putIndex()*100)/buffer.capacity());
+    			long r = (buffer.putIndex()*100)/buffer.capacity();
+    			long max = _maxBodyUsageSize.get();
+    			
+    			//不做强制并发控制，如果替换失败也不重试
+    			if (max < r)
+    			{
+    				_maxBodyUsageSize.compareAndSet(max, r);
+    			}
+    			
+    			_bufferRatio.addAndGet(r);
         		_bufferCount.incrementAndGet();
         	}
         	catch(Exception ex)
@@ -382,6 +427,7 @@ public class PooledBuffers extends AbstractBuffers
     class BufferInspactor implements java.lang.Runnable
     {
     	private int interval = 10;
+    	private boolean flag = true;
 
     	public BufferInspactor(int interval)
     	{
@@ -389,26 +435,44 @@ public class PooledBuffers extends AbstractBuffers
     			this.interval = interval;
     	}
     	
+    	public void stopInspactor()
+    	{
+    		flag = false;
+    		this.notifyAll();
+    	}
+    	
 		@Override
 		public void run() {
 			
-			while(true)
+			while(flag)
 			{
 				
 				try {
-					if (needAdjustBufferSize)
+					if (needReclaimIdleBuffer)
 					{
 						checkBufferChain();
 					}
 					
 					Thread.sleep(interval * 1000);
 					
-					if (_headCount.get() != 0 && _bufferCount.get() != 0)
-						logger.warn(new StringBuilder().append("PooledBuffers info: ")
+					long hr = 0;
+					long br = 0;
+					if (_headCount.get() != 0)
+					{
+						hr = _headRatio.get()/_headCount.get();
+					}
+					if (_bufferCount.get() != 0)
+					{
+						br = _bufferRatio.get()/_bufferCount.get();
+					}
+					
+					logger.warn(new StringBuilder().append("PooledBuffers info: ")
 							.append(" head chain count: ").append(_headers.size())
 							.append(" body chain count: ").append(_buffers.size())
-							.append(" head usage: ").append(_headRatio.get()/_headCount.get())
-							.append(" ,body usage: ").append(_bufferRatio.get()/_bufferCount.get())
+							.append(" head max usage: ").append(_maxHeaderUsageSize)
+							.append(" body max usage: ").append(_maxBodyUsageSize)
+							.append(" head usage: ").append(hr)
+							.append(" ,body usage: ").append(br)
 							.append(" ,direct buffer size: ").append(_allocDirectBufferSize.get()).toString());
 				} catch (InterruptedException e) {
 					logger.warn(e.getCause());

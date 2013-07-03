@@ -9,6 +9,7 @@ import java.util.concurrent.CyclicBarrier;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -28,7 +29,7 @@ public class PooledBuffersTest {
 	@After
 	public void tearDown() throws Exception {
 		
-		
+		pooledBuffers.clean();
 	}
 	
 	@Test
@@ -122,7 +123,7 @@ public class PooledBuffersTest {
 		Assert.assertArrayEquals(new int[]{0,40,0,40}, pooledBuffers.getInnerCounters());
 	}
 
-	@Ignore
+	
 	@Test
 	public void test() throws InterruptedException {
 		Buffer[] header = new Buffer[40];
@@ -184,9 +185,12 @@ public class PooledBuffersTest {
 		
 		Assert.assertArrayEquals(new int[]{0,25,0,25}, pooledBuffers.getInnerCounters());
 		
+		byte[] temp = new byte[1024];
+		
 		for (int i =0 ; i < 43; i++)
 		{
 			body[i] = pooledBuffers.getBuffer();
+			body[i].put(temp);
 		}
 		Assert.assertArrayEquals(new int[]{0,0,0,0}, pooledBuffers.getInnerCounters());
 		
