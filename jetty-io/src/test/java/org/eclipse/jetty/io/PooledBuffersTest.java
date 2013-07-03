@@ -2,9 +2,14 @@ package org.eclipse.jetty.io;
 
 import static org.junit.Assert.*;
 
+import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
+
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class PooledBuffersTest {
@@ -25,7 +30,61 @@ public class PooledBuffersTest {
 		
 		
 	}
+	
+	@Test
+	public void test1() throws InterruptedException
+	{
+		final CountDownLatch countDownLatch = new CountDownLatch(4);
+		final CyclicBarrier cyclicBarrier = new CyclicBarrier(4);
+		
+		for (int i = 0 ; i < 4; i++)
+		{
+			final int c = i;
+			
+			Thread t = new Thread()
+			{
+				public void run()
+				{
+					try {
+						cyclicBarrier.await();
+						
+						Buffer[] body = new Buffer[10];
+						
+						for (int i =0 ; i < 10;i++)
+						{
+							body[i] = pooledBuffers.getBuffer();
+						}
+						Thread.sleep(2000);
+						
+						Assert.assertArrayEquals(new int[]{0,0,0,0}, pooledBuffers.getInnerCounters());
+						
+						for (int i =0 ; i < 10;i++)
+						{
+							pooledBuffers.returnBuffer(body[i]);
+						}
+						Thread.sleep(2000);
+						
+						Assert.assertArrayEquals(new int[]{0,40,0,40}, pooledBuffers.getInnerCounters());
+						
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} catch (BrokenBarrierException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					
+					System.out.println(new StringBuilder().append("worker ").append(c).append(" start!").toString());
+					countDownLatch.countDown();
+				}
+			};
+			t.start();
+		}
+		
+		countDownLatch.await();
+	}
 
+	@Ignore
 	@Test
 	public void test() throws InterruptedException {
 		Buffer[] header = new Buffer[40];
